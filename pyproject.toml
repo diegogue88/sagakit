@@ -1,0 +1,40 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sagakit"
+version = "0.0.1"
+description = "Orchestrated Saga pattern library for Python async distributed transactions"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.4",
+    "mypy>=1.10",
+    "testcontainers>=4.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sagakit"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["src/sagakit"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
