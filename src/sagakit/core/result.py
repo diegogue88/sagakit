@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 
-class SagaStatus(str, Enum):
+class SagaStatus(StrEnum):
     """Terminal state of a saga execution.
 
     Inherits from ``str`` so values can be stored as plain strings in logs
