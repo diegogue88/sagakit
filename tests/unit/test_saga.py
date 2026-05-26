@@ -49,6 +49,10 @@ class TestValidSaga:
 
 
 class TestValidationErrors:
+    def test_empty_steps_raises_value_error(self) -> None:
+        with pytest.raises(ValueError, match="at least one step"):
+            Saga(name="order_saga", steps=[])
+
     def test_self_compensation_raises_value_error(self) -> None:
         loop_step = _make_step("charge_payment", compensate="charge_payment")
         with pytest.raises(ValueError, match="infinite loop"):

@@ -36,6 +36,9 @@ class Saga(Generic[T]):
         self._validate()
 
     def _validate(self) -> None:
+        if not self.steps:
+            raise ValueError(f"Saga '{self.name}' must have at least one step.")
+
         step_names = {s.name for s in self.steps}
 
         for s in self.steps:
