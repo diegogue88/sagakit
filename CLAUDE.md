@@ -133,9 +133,14 @@ generated.**
 - Work in **small, reviewable commits**. One logical change per commit.
   Conventional Commits style (`feat:`, `fix:`, `docs:`, `test:`, `chore:`,
   `refactor:`).
-- After implementing anything non-trivial, run `ruff check`, `ruff format`,
-  `mypy --strict src/`, and `pytest` before declaring it done. If any of
-  those fail, fix them; do not hand back broken state.
+- After implementing anything non-trivial, run `uv run ruff check`,
+  `uv run ruff format`, `uv run mypy --strict src/`, and `uv run pytest`
+  before declaring it done. If any of those fail, fix them; do not hand
+  back broken state. Never invoke `pytest`, `mypy`, or `ruff` directly —
+  always prefix with `uv run` to ensure the project's venv is used, not
+  the global Python installation.
+- Never add `Co-Authored-By: Claude` or any AI attribution to commit
+  messages. All commits are authored by the repo owner alone.
 - When the user asks for a feature, **first restate the plan in 3-5 bullets
   and wait for confirmation** before writing code. Do not over-engineer.
 - If a request seems to contradict this file, raise the conflict. Do not
