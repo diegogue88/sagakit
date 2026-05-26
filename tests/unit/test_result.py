@@ -9,13 +9,13 @@ from sagakit.core.result import SagaResult, SagaStatus
 
 class TestSagaStatus:
     def test_completed_value(self) -> None:
-        assert SagaStatus.COMPLETED == "COMPLETED"
+        assert SagaStatus.COMPLETED == "completed"
 
     def test_compensated_value(self) -> None:
-        assert SagaStatus.COMPENSATED == "COMPENSATED"
+        assert SagaStatus.COMPENSATED == "compensated"
 
     def test_failed_value(self) -> None:
-        assert SagaStatus.FAILED == "FAILED"
+        assert SagaStatus.FAILED == "failed"
 
     def test_status_is_str_subclass(self) -> None:
         assert isinstance(SagaStatus.COMPLETED, str)

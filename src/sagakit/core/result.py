@@ -13,12 +13,12 @@ class SagaStatus(StrEnum):
 
     Example:
         result.status == SagaStatus.COMPLETED  # True
-        result.status == "COMPLETED"           # also True
+        result.status == "completed"           # also True
     """
 
-    COMPLETED = "COMPLETED"
-    COMPENSATED = "COMPENSATED"
-    FAILED = "FAILED"
+    COMPLETED = "completed"
+    COMPENSATED = "compensated"
+    FAILED = "failed"
 
 
 @dataclass(frozen=True)
