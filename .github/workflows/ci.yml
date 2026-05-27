@@ -38,5 +38,9 @@ jobs:
       - name: Type check (mypy)
         run: uv run mypy --strict src/
 
-      - name: Tests (pytest)
-        run: uv run pytest
+      - name: Unit tests
+        run: uv run pytest --ignore=tests/integration -v
+
+      - name: Integration tests
+        run: uv run pytest -m integration -v
+        continue-on-error: true

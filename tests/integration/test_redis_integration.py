@@ -13,7 +13,9 @@ from sagakit.transport.redis_transport import RedisStreamsTransport
 @pytest.fixture(scope="module")
 def redis_url() -> str:
     with RedisContainer() as container:
-        yield container.get_connection_url()
+        host = container.get_container_host_ip()
+        port = container.get_exposed_port(6379)
+        yield f"redis://{host}:{port}"
 
 
 @pytest.fixture

@@ -49,7 +49,7 @@ class TestStepDecorator:
         async def do_work(ctx: Any) -> str:
             return "done"
 
-        result = asyncio.get_event_loop().run_until_complete(do_work.fn(None))
+        result = asyncio.run(do_work.fn(None))
         assert result == "done"
 
     def test_step_is_frozen(self) -> None:
