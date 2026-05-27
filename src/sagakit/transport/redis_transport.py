@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 import redis.asyncio as aioredis
 from redis.exceptions import ResponseError
@@ -12,6 +12,18 @@ from sagakit.transport.message import Message
 _STREAM_MAXLEN = 10_000
 _CONSUME_BLOCK_MS = 2_000
 _CONSUME_COUNT = 1
+
+# redis-py's xadd expects this exact field dict type; we cast from dict[str, Any]
+# at call sites because our public API cannot be that restrictive.
+# memoryview[int] is only subscriptable at runtime on Python 3.12+, so keep
+# this alias type-checker-only; cast() is a no-op at runtime regardless.
+if TYPE_CHECKING:
+    _XAddFields = dict[
+        bytes | bytearray | memoryview[int] | str | int | float,
+        bytes | bytearray | memoryview[int] | str | int | float,
+    ]
+else:
+    _XAddFields = dict
 
 
 class RedisStreamsTransport(Transport):
@@ -30,7 +42,7 @@ class RedisStreamsTransport(Transport):
         msg_id = await transport.publish("orders", {"order_id": "abc"})
     """
 
-    def __init__(self, client: aioredis.Redis) -> None:  # type: ignore[type-arg]
+    def __init__(self, client: aioredis.Redis) -> None:
         self._client = client
 
     async def initialize(self, stream: str, group: str) -> None:
@@ -60,13 +72,11 @@ class RedisStreamsTransport(Transport):
             The Redis entry ID assigned to the new message.
         """
         msg_id: str = await self._client.xadd(
-            stream, message, maxlen=_STREAM_MAXLEN, approximate=True
+            stream, cast(_XAddFields, message), maxlen=_STREAM_MAXLEN, approximate=True
         )
         return msg_id
 
-    async def consume(  # type: ignore[override]
-        self, stream: str, group: str, consumer: str
-    ) -> AsyncIterator[Message]:
+    async def consume(self, stream: str, group: str, consumer: str) -> AsyncIterator[Message]:
         """Yield unacknowledged messages from the consumer group.
 
         Blocks for up to 2 seconds per poll when the stream is empty so the
@@ -118,9 +128,7 @@ class RedisStreamsTransport(Transport):
         """
         await self._client.xack(stream, group, message_id)
 
-    async def reject(
-        self, stream: str, group: str, message_id: str, requeue: bool = True
-    ) -> None:
+    async def reject(self, stream: str, group: str, message_id: str, requeue: bool = True) -> None:
         """Reject a message.
 
         When ``requeue=True`` the message is ACKed then re-published to the
@@ -137,8 +145,7 @@ class RedisStreamsTransport(Transport):
             message_id: Entry ID to reject.
             requeue: True to retry on the same stream; False for dead-letter.
         """
-        # We need the original message to carry its payload forward.
-        # XRANGE with the exact ID returns exactly one entry when it exists.
+        # XRANGE with the exact ID returns at most one entry.
         entries = await self._client.xrange(stream, min=message_id, max=message_id)
         if entries:
             _id, fields = entries[0]
@@ -161,7 +168,9 @@ class RedisStreamsTransport(Transport):
             republish: dict[str, Any] = {**payload}
             for attr_key, attr_val in attributes.items():
                 republish[f"attr:{attr_key}"] = attr_val
-            await self._client.xadd(stream, republish, maxlen=_STREAM_MAXLEN, approximate=True)
+            await self._client.xadd(
+                stream, cast(_XAddFields, republish), maxlen=_STREAM_MAXLEN, approximate=True
+            )
             await self._client.xack(stream, group, message_id)
         else:
             dlq_stream = f"{stream}:dlq"
@@ -169,5 +178,5 @@ class RedisStreamsTransport(Transport):
             for attr_key, attr_val in attributes.items():
                 dlq_entry[f"attr:{attr_key}"] = attr_val
             dlq_entry["attr:original_id"] = message_id
-            await self._client.xadd(dlq_stream, dlq_entry)
+            await self._client.xadd(dlq_stream, cast(_XAddFields, dlq_entry))
             await self._client.xack(stream, group, message_id)

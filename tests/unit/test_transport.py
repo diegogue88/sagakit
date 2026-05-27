@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, call, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from sagakit.transport.message import Message
 from sagakit.transport.redis_transport import RedisStreamsTransport
 
 
@@ -69,9 +68,7 @@ async def test_reject_requeue_acks_and_republishes() -> None:
 @pytest.mark.asyncio
 async def test_reject_requeue_defaults_requeue_count_from_zero() -> None:
     transport, client = _make_transport()
-    client.xrange.return_value = [
-        (b"1700000000000-0", {b"order_id": b"abc"})
-    ]
+    client.xrange.return_value = [(b"1700000000000-0", {b"order_id": b"abc"})]
     client.xadd.return_value = "1700000000001-0"
 
     await transport.reject("orders", "saga-workers", "1700000000000-0", requeue=True)
@@ -83,9 +80,7 @@ async def test_reject_requeue_defaults_requeue_count_from_zero() -> None:
 @pytest.mark.asyncio
 async def test_reject_no_requeue_writes_to_dlq_stream() -> None:
     transport, client = _make_transport()
-    client.xrange.return_value = [
-        (b"1700000000000-0", {b"order_id": b"abc"})
-    ]
+    client.xrange.return_value = [(b"1700000000000-0", {b"order_id": b"abc"})]
     client.xadd.return_value = "1700000000001-0"
 
     await transport.reject("orders", "saga-workers", "1700000000000-0", requeue=False)

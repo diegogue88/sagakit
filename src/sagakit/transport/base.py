@@ -52,9 +52,7 @@ class Transport(ABC):
         """
 
     @abstractmethod
-    async def reject(
-        self, stream: str, group: str, message_id: str, requeue: bool = True
-    ) -> None:
+    async def reject(self, stream: str, group: str, message_id: str, requeue: bool = True) -> None:
         """Reject a message, either requeueing or discarding it.
 
         Args:

@@ -32,7 +32,7 @@ class RedisStateStore(StateStore):
         state = await store.load("saga-1")
     """
 
-    def __init__(self, client: aioredis.Redis) -> None:  # type: ignore[type-arg]
+    def __init__(self, client: aioredis.Redis) -> None:
         self._client = client
 
     def _key(self, saga_id: str) -> str:
@@ -49,7 +49,9 @@ class RedisStateStore(StateStore):
             state: Arbitrary serialisable state dict.
         """
         serialised = {k: json.dumps(v) for k, v in state.items()}
-        await self._client.hset(self._key(saga_id), mapping=serialised)
+        # redis-py's overloaded hset return type resolves to Awaitable[int] | int
+        # under mypy strict mode; the await is correct at runtime.
+        await self._client.hset(self._key(saga_id), mapping=serialised)  # type: ignore[misc]
 
     async def load(self, saga_id: str) -> dict[str, Any] | None:
         """Load persisted state for a saga.
@@ -61,13 +63,14 @@ class RedisStateStore(StateStore):
             The saved state dict with values deserialised, or None if the
             saga has no persisted state.
         """
-        raw: dict[bytes, bytes] = await self._client.hgetall(self._key(saga_id))
+        # redis-py's overloaded hgetall return type resolves to Awaitable[...] | dict
+        # under mypy strict mode; the await is correct at runtime.
+        raw: dict[bytes, bytes] = await self._client.hgetall(  # type: ignore[misc]
+            self._key(saga_id)
+        )
         if not raw:
             return None
-        return {
-            (k.decode() if isinstance(k, bytes) else k): json.loads(v)
-            for k, v in raw.items()
-        }
+        return {(k.decode() if isinstance(k, bytes) else k): json.loads(v) for k, v in raw.items()}
 
     async def delete(self, saga_id: str) -> None:
         """Delete all persisted state for a saga.
@@ -95,9 +98,7 @@ class RedisIdempotencyStore(IdempotencyStore):
             return  # duplicate — skip processing
     """
 
-    def __init__(
-        self, client: aioredis.Redis, default_ttl: int = _DEFAULT_TTL  # type: ignore[type-arg]
-    ) -> None:
+    def __init__(self, client: aioredis.Redis, default_ttl: int = _DEFAULT_TTL) -> None:
         self._client = client
         self._default_ttl = default_ttl
 
@@ -114,9 +115,7 @@ class RedisIdempotencyStore(IdempotencyStore):
         Returns:
             True if the key was claimed; False if it already existed.
         """
-        result = await self._client.set(
-            self._key(key), _STATUS_PROCESSING, nx=True, ex=ttl
-        )
+        result = await self._client.set(self._key(key), _STATUS_PROCESSING, nx=True, ex=ttl)
         return result is not None
 
     async def set_completed(self, key: str) -> None:
