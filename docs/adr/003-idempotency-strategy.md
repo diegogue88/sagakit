@@ -48,16 +48,17 @@ sagakit implements idempotency as follows:
 For every step execution, sagakit constructs a key:
 
 ```
-sagakit:idempotency:{saga_id}:{step_name}:{attempt_number}
+sagakit:idempotency:{saga_id}:{step_name}
 ```
 
 - `saga_id` — unique identifier of the saga instance (UUID generated at
   saga start).
 - `step_name` — the name of the step being executed, derived from the
   function name or the explicit `name` parameter on the `@step` decorator.
-- `attempt_number` — incremented by sagakit on each retry of the same step.
-  A redelivery of the same message uses the same `attempt_number`; a
-  deliberate retry after failure increments it.
+- `attempt_number` is NOT part of the key. All retries of the same 
+  step share the same idempotency key, ensuring external systems 
+  (Stripe, Twilio, etc.) see a consistent identifier across attempts.
+  The attempt number is tracked in SagaContext for observability only.
 
 This key uniquely identifies one execution attempt of one step in one saga.
 Two workers receiving the same redelivered message will compute the same key.
@@ -192,9 +193,9 @@ Track processed keys in a Python dictionary in the worker process.
 - **Redis persistence must be enabled for the guarantee to hold across
   restarts.** A vanilla `docker run redis` with no persistence flags loses
   all idempotency keys on restart. Documentation must make this explicit.
-- **`attempt_number` is sagakit-managed, not user-managed.** Users cannot
-  arbitrarily reset attempt numbers without risking key collisions. This is
-  a deliberate constraint, not an oversight.
+- **`attempt_number` is exposed in `SagaContext` for logging and observability 
+  but does not affect the idempotency key. Users should not rely on it for 
+  deduplication logic. This is a deliberate constraint, not an oversight.**
 
 ### Neutral
 
@@ -207,7 +208,7 @@ Track processed keys in a Python dictionary in the worker process.
 
 - Idempotency for compensation steps. Compensations are subject to the same
   redelivery risk, but their idempotency key construction follows the same
-  pattern (`saga_id:compensate_{step_name}:{attempt_number}`). This is
+  pattern (`sagakit:idempotency:{saga_id}:compensate_{step_name}`). This is
   documented in ADR 004.
 - Cross-saga deduplication. Two separate sagas with different `saga_id`
   values that happen to affect the same resource are the user's
