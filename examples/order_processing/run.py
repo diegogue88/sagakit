@@ -18,9 +18,11 @@ import asyncio
 import os
 import sys
 
+sys.path.insert(0, os.path.dirname(__file__))
+
 import redis.asyncio as aioredis
 import structlog
-from examples.order_processing.steps import (
+from steps import (
     charge_payment,
     refund_payment,
     release_inventory,
