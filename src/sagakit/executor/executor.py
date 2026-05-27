@@ -128,6 +128,33 @@ class SagaExecutor(Generic[T]):
         effective_name = step_name_override or step.name
         attempt_number = 1
 
+        # Build an initial context to compute the idempotency key, then claim
+        # it once before the retry loop. Claiming inside the loop would cause
+        # set_processing (SET NX) to return False on retry 2+ because the key
+        # already exists from attempt 1's set_failed call.
+        initial_ctx = SagaContext.create(
+            saga_id=saga_id,
+            saga_name=saga_name,
+            step_name=effective_name,
+            attempt_number=attempt_number,
+            saga_input=payload,
+            step_results=step_results,
+            metadata=metadata,
+        )
+        claimed = await cfg.idempotency_store.set_processing(
+            key=initial_ctx.idempotency_key,
+            ttl=cfg.idempotency_ttl,
+        )
+        if not claimed:
+            # Another worker already processed this step; load its result.
+            saved = await cfg.state_store.load(saga_id)
+            prior_result = saved.get(effective_name) if saved else None
+            logger.info(
+                "step.skipped_idempotent",
+                step=effective_name,
+            )
+            return True, prior_result, None
+
         while True:
             ctx = SagaContext.create(
                 saga_id=saga_id,
@@ -138,26 +165,9 @@ class SagaExecutor(Generic[T]):
                 step_results=step_results,
                 metadata=metadata,
             )
-
-            claimed = await cfg.idempotency_store.set_processing(
-                key=ctx.idempotency_key,
-                ttl=cfg.idempotency_ttl,
-            )
-            if not claimed:
-                # Another worker already processed this step; load its result.
-                saved = await cfg.state_store.load(saga_id)
-                prior_result = saved.get(effective_name) if saved else None
-                logger.info(
-                    "step.skipped_idempotent",
-                    step=effective_name,
-                    attempt=attempt_number,
-                )
-                return True, prior_result, None
-
             try:
                 result = await step.fn(ctx)
             except Exception as exc:
-                await cfg.idempotency_store.set_failed(ctx.idempotency_key)
                 if attempt_number < cfg.max_attempts:
                     delay = min(
                         cfg.retry_base_delay * (2 ** (attempt_number - 1)),
@@ -174,6 +184,7 @@ class SagaExecutor(Generic[T]):
                     attempt_number += 1
                     continue
 
+                await cfg.idempotency_store.set_failed(initial_ctx.idempotency_key)
                 ctx.logger.error(
                     "step.exhausted_retries",
                     step=effective_name,
@@ -182,7 +193,7 @@ class SagaExecutor(Generic[T]):
                 )
                 return False, None, exc
             else:
-                await cfg.idempotency_store.set_completed(ctx.idempotency_key)
+                await cfg.idempotency_store.set_completed(initial_ctx.idempotency_key)
                 await cfg.state_store.save(saga_id, {effective_name: result})
                 return True, result, None
 
