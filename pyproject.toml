@@ -9,6 +9,7 @@ description = "Orchestrated Saga pattern library for Python async distributed tr
 requires-python = ">=3.11"
 license = { text = "MIT" }
 dependencies = [
+    "redis[hiredis]>=5.0",
     "structlog>=25.5.0",
 ]
 
@@ -40,3 +41,4 @@ files = ["src/sagakit"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = ["integration: requires external services (Redis)"]
