@@ -158,3 +158,4 @@ generated.**
 - Distributed locking primitives
 - Web UI / dashboard
 - Non-Python clients
+- PyPI publishing — planned for v0.2.0 after the example is stable
