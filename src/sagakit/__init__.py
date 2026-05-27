@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from sagakit.core import AsyncStepFn, Saga, SagaContext, SagaResult, SagaStatus, Step, step
+from sagakit.executor import SagaConfig, SagaExecutor
 from sagakit.storage import IdempotencyStore, RedisIdempotencyStore, RedisStateStore, StateStore
 from sagakit.transport import Message, RedisStreamsTransport, Transport
 
@@ -14,7 +15,9 @@ __all__ = [
     "RedisStateStore",
     "RedisStreamsTransport",
     "Saga",
+    "SagaConfig",
     "SagaContext",
+    "SagaExecutor",
     "SagaResult",
     "SagaStatus",
     "StateStore",
