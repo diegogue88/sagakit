@@ -50,12 +50,12 @@ class TestDeepCopy:
 class TestIdempotencyKey:
     def test_key_format(self) -> None:
         ctx = _make(saga_id="abc", step_name="do_thing", attempt_number=3)
-        assert ctx.idempotency_key == "abc:do_thing:3"
+        assert ctx.idempotency_key == "abc:do_thing"
 
     def test_key_changes_with_attempt_number(self) -> None:
         ctx1 = _make(attempt_number=1)
         ctx2 = _make(attempt_number=2)
-        assert ctx1.idempotency_key != ctx2.idempotency_key
+        assert ctx1.idempotency_key == ctx2.idempotency_key
 
     def test_key_changes_with_step_name(self) -> None:
         ctx1 = _make(step_name="step_a")

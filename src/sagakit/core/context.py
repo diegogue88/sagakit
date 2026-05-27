@@ -73,7 +73,7 @@ class SagaContext(Generic[T]):
             saga_name=saga_name,
             step_name=step_name,
             attempt_number=attempt_number,
-            idempotency_key=f"{saga_id}:{step_name}:{attempt_number}",
+            idempotency_key=f"{saga_id}:{step_name}",
             saga_input=saga_input,
             step_results=copy.deepcopy(step_results),
             metadata=copy.deepcopy(metadata or {}),
