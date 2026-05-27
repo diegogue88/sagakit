@@ -82,6 +82,7 @@ class SagaExecutor(Generic[T]):
                     saga_id=resolved_id,
                     saga_name=saga.name,
                     saga_steps=saga.steps,
+                    saga_compensations=saga.compensations,
                     payload=payload,
                     step_results=step_results,
                     metadata=resolved_meta,
@@ -192,6 +193,7 @@ class SagaExecutor(Generic[T]):
         saga_id: str,
         saga_name: str,
         saga_steps: list[Step],
+        saga_compensations: list[Step],
         payload: T,
         step_results: dict[str, Any],
         metadata: dict[str, Any],
@@ -202,7 +204,7 @@ class SagaExecutor(Generic[T]):
         Returns ``(all_succeeded, list_of_compensated_step_names)``.
         ``all_succeeded`` is ``False`` if any compensation itself exhausted retries.
         """
-        step_by_name = {s.name: s for s in saga_steps}
+        step_by_name = {s.name: s for s in (*saga_steps, *saga_compensations)}
         compensated_names: list[str] = []
         all_succeeded = True
 

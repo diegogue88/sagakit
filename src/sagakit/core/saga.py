@@ -17,20 +17,28 @@ class Saga(Generic[T]):
     handler by name; if execution fails, sagakit runs compensations in reverse
     order for all steps that already completed.
 
+    Compensation handlers that should never run in the forward pass belong in
+    ``compensations``. Handlers listed there are only invoked during rollback,
+    not during normal execution. Handlers may also be placed in ``steps``
+    for sagas where the same function serves both purposes, or for simple
+    test arrangements.
+
     Validation runs automatically at construction time and will raise
     :class:`ValueError` for self-referential or dangling compensation references.
-    Steps that can be reached mid-saga without a compensation handler emit a
-    :class:`UserWarning` — this is legal but risky.
+    Forward steps that can be reached mid-saga without a compensation handler
+    emit a :class:`UserWarning` — this is legal but risky.
 
     Example:
         saga = Saga(
             name="order_saga",
-            steps=[reserve_inventory_step, charge_payment_step, confirm_order_step],
+            steps=[charge_payment, reserve_inventory, ship_order],
+            compensations=[refund_payment, release_inventory],
         )
     """
 
     name: str
     steps: list[Step] = field(default_factory=list)
+    compensations: list[Step] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         self._validate()
@@ -39,7 +47,7 @@ class Saga(Generic[T]):
         if not self.steps:
             raise ValueError(f"Saga '{self.name}' must have at least one step.")
 
-        step_names = {s.name for s in self.steps}
+        all_names = {s.name for s in self.steps} | {s.name for s in self.compensations}
 
         for s in self.steps:
             if s.compensate_name is None:
@@ -49,14 +57,13 @@ class Saga(Generic[T]):
                     f"Step '{s.name}' references itself as its compensation handler, "
                     "which would cause an infinite loop."
                 )
-            if s.compensate_name not in step_names:
+            if s.compensate_name not in all_names:
                 raise ValueError(
                     f"Step '{s.name}' declares compensate_name='{s.compensate_name}', "
                     f"but '{s.compensate_name}' does not exist in this saga."
                 )
 
-        # Non-final steps without a compensation handler are legal but dangerous:
-        # if a later step fails there is nothing to undo this step's side-effects.
+        # Non-final forward steps without a compensation handler are legal but dangerous.
         for s in self.steps[:-1]:
             if s.compensate_name is None:
                 warnings.warn(
