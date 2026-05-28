@@ -70,7 +70,6 @@ async def main() -> None:
     saga = Saga(
         name="order_saga",
         steps=[charge_payment, reserve_inventory, ship_order],
-        compensations=[refund_payment, release_inventory],
     )
     result = await SagaExecutor(config).execute(saga, {"order_id": "ord-001", "amount": 99.99})
     print(result.status)   # "completed", "compensated", or "failed"
@@ -83,13 +82,17 @@ asyncio.run(main())
 
 ## Why sagakit
 
-<!-- TODO: Diego to write this section -->
-
----
+- **Zero broker overhead.** One `docker run redis` is the entire infrastructure requirement. No Zookeeper, no broker configuration, no schema registry. A developer can have a working saga running in under 30 minutes.
+- **Synchronous-feeling async API.** `await executor.execute(saga, payload)` — no polling, no callbacks, no separate worker process to manage. Your saga runs and returns a result like any other async function.
+- **Built-in idempotency.** Every step gets a stable idempotency key across retries. Double-charging a payment or double-sending an email — the most common distributed systems bug — is prevented by default.
+- **State survives restarts.** Saga state is persisted in Redis on every step completion. With AOF persistence enabled, in-flight sagas resume where they left off after a process restart.
+- **Explicit compensation.** Every step declares its own undo handler. When something fails, sagakit runs compensations in reverse order automatically — no manual cleanup code scattered across your codebase.
 
 ## When NOT to use sagakit
 
-<!-- TODO: Diego to write this section -->
+- **High-throughput systems (100+ sagas/second).** sagakit performs multiple Redis operations per step (idempotency check, state save, stream publish). Single-node Redis handles this well at moderate load, but sagakit has not been benchmarked at sustained high throughput. If you need that scale, measure first — or consider a Kafka-backed solution.
+- **Long-running workflows (hours or days).** `executor.execute()` is a single async call that runs to completion. A saga waiting for a human approval step that takes two days is not a good fit. For workflows with human-in-the-loop steps or multi-day durations, use Temporal or a purpose-built workflow engine.
+- **Workflows with parallel steps.** sagakit executes steps in strict sequence. If you need two steps to run concurrently — notify the warehouse and send a confirmation email at the same time — sagakit does not support that in v1. Use it when your workflow is naturally sequential with 3 or more steps that each need compensation.
 
 ---
 
